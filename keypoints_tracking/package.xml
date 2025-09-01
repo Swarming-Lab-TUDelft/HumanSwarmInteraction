@@ -9,6 +9,7 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>human_swarm_interaction_interfaces</depend>
   <depend>Eigen3</depend>
 

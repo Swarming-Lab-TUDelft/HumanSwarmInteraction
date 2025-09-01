@@ -49,11 +49,11 @@ void LinearKalmanFilter::predict()
   m_P.noalias() = m_A * m_P * m_A.transpose() + m_Q;
 }
 
-void LinearKalmanFilter::update(const double& x, const double& y)
+void LinearKalmanFilter::update(const double& x, const double& y, const double& w, const double& h)
 {
   // Create measurement vector
   Eigen::VectorXd z(MEASUREMENT_SIZE);
-  z << x, y;
+  z << x, y, w, h;
 
   // Calculate Kalman gain
   Eigen::MatrixXd S = m_H * m_P * m_H.transpose() + m_R;
@@ -64,14 +64,24 @@ void LinearKalmanFilter::update(const double& x, const double& y)
   m_P.noalias() -= K * m_H * m_P;
 }
 
-void LinearKalmanFilter::setInitialState(const double& x, const double& y, const double& vx, const double& vy)
+void LinearKalmanFilter::setInitialState(const double& x, const double& y, const double& w, const double& h,
+  const double& vx, const double& vy, const double& vw, const double& vh)
 {
   m_x(STATE_HORIZONTAL_CENTROID_COORDINATE) = x;
   m_x(STATE_VERTICAL_CENTROID_COORDINATE) = y;
+  m_x(STATE_TRACKING_WINDOW_WIDTH) = w;
+  m_x(STATE_TRACKING_WINDOW_HEIGHT) = h;
   m_x(STATE_HORIZONTAL_CENTROID_VELOCITY) = vx;
   m_x(STATE_VERTICAL_CENTROID_VELOCITY) = vy;
+  m_x(STATE_TRACKING_WINDOW_WIDTH_VELOCITY) = vw;
+  m_x(STATE_TRACKING_WINDOW_HEIGHT_VELOCITY) = vh;
+  m_P = Eigen::MatrixXd::Identity(STATE_SIZE, STATE_SIZE) * 1e-3;
+  m_initialized = true;
+}
 
-  m_P = Eigen::MatrixXd::Identity(STATE_SIZE, STATE_SIZE) * 0.1;
+bool LinearKalmanFilter::isInitialized() const
+{
+  return m_initialized;
 }
 
 void LinearKalmanFilter::initializeStateTransitionMatrix(const double& dt)
@@ -80,7 +90,6 @@ void LinearKalmanFilter::initializeStateTransitionMatrix(const double& dt)
   for (int i = 0; i < MEASUREMENT_SIZE; i++) {
     m_A(i, i + MEASUREMENT_SIZE) = dt;
   }
-  std::cout << "State transition matrix:\n" << m_A << std::endl;
 }
 
 void LinearKalmanFilter::initializeObservationMatrix()
@@ -89,59 +98,50 @@ void LinearKalmanFilter::initializeObservationMatrix()
   for (int i = 0; i < MEASUREMENT_SIZE; i++) {
     m_H(i, i) = 1.0;
   }
-  std::cout << "Observation matrix:\n" << m_H << std::endl;
 }
 
 void LinearKalmanFilter::initializeState(const std::array<double, STATE_SIZE>& initial_state)
 {
   m_x = Eigen::Map<const Eigen::VectorXd>(initial_state.data(), STATE_SIZE);
-  std::cout << "Initial state: " << m_x.transpose() << std::endl;
 }
 
 void LinearKalmanFilter::initializeCovarianceMatrix(const std::array<double, STATE_SIZE>& covariances)
 {
   m_P = Eigen::MatrixXd::Zero(STATE_SIZE, STATE_SIZE);
   m_P.diagonal() = Eigen::Map<const Eigen::VectorXd>(covariances.data(), STATE_SIZE);
-  std::cout << "Initial covariance:\n" << m_P << std::endl;
 }
 
 void LinearKalmanFilter::initializeProcessNoiseMatrix(const std::array<double, STATE_SIZE>& process_noises)
 {
   m_Q = Eigen::MatrixXd::Zero(STATE_SIZE, STATE_SIZE);
   m_Q.diagonal() = Eigen::Map<const Eigen::VectorXd>(process_noises.data(), STATE_SIZE);
-  std::cout << "Process noise:\n" << m_Q << std::endl;
 }
 
 void LinearKalmanFilter::initializeObservationNoiseMatrix(const std::array<double, MEASUREMENT_SIZE>& observation_noises)
 {
   m_R = Eigen::MatrixXd::Zero(MEASUREMENT_SIZE, MEASUREMENT_SIZE);
   m_R.diagonal() = Eigen::Map<const Eigen::VectorXd>(observation_noises.data(), MEASUREMENT_SIZE);
-  std::cout << "Observation noise:\n" << m_R << std::endl;
 }
 
 void LinearKalmanFilter::initializeState(const std::vector<double>& initial_state)
 {
   m_x = Eigen::Map<const Eigen::VectorXd>(initial_state.data(), STATE_SIZE);
-  std::cout << "Initial state: " << m_x.transpose() << std::endl;
 }
 
 void LinearKalmanFilter::initializeCovarianceMatrix(const std::vector<double>& covariances)
 {
   m_P = Eigen::MatrixXd::Zero(STATE_SIZE, STATE_SIZE);
   m_P.diagonal() = Eigen::Map<const Eigen::VectorXd>(covariances.data(), STATE_SIZE);
-  std::cout << "Initial covariance:\n" << m_P << std::endl;
 }
 
 void LinearKalmanFilter::initializeProcessNoiseMatrix(const std::vector<double>& process_noises)
 {
   m_Q = Eigen::MatrixXd::Zero(STATE_SIZE, STATE_SIZE);
   m_Q.diagonal() = Eigen::Map<const Eigen::VectorXd>(process_noises.data(), STATE_SIZE);
-  std::cout << "Process noise:\n" << m_Q << std::endl;
 }
 
 void LinearKalmanFilter::initializeObservationNoiseMatrix(const std::vector<double>& observation_noises)
 {
   m_R = Eigen::MatrixXd::Zero(MEASUREMENT_SIZE, MEASUREMENT_SIZE);
   m_R.diagonal() = Eigen::Map<const Eigen::VectorXd>(observation_noises.data(), MEASUREMENT_SIZE);
-  std::cout << "Observation noise:\n" << m_R << std::endl;
 }

@@ -132,11 +132,12 @@ class PoseNetNode(Node):
         keypoints_msg.header.frame_id = 'camera_frame'
         keypoints_msg.header.stamp = self.get_clock().now().to_msg()
 
-        for idx, (y, x, _) in enumerate(keypoints):
+        for idx, (y, x, confidence) in enumerate(keypoints):
             keypoint = PoseKeypoint()
             keypoint.name = KEYPOINT_LABELS[idx]
             keypoint.x = float(x)
             keypoint.y = float(y)
+            keypoint.confidence = float(confidence)
             keypoints_msg.keypoints.append(keypoint)
 
         self.keypoints_publisher.publish(keypoints_msg)

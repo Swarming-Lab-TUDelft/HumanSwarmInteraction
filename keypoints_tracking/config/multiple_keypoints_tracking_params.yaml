@@ -1,4 +1,4 @@
-single_keypoint_tracking_node:
+multiple_keypoints_tracking_node:
   ros__parameters:
 
     input_keypoints_topic_name: "posenet/keypoints"
@@ -7,12 +7,16 @@ single_keypoint_tracking_node:
     output_keypoints_topic_name: "filtered_keypoints"
     output_keypoints_topic_queue_size: 10
 
-    keypoint_name: "right_shoulder"
+    keypoint_names:
+    - left_elbow
+    - left_wrist
+    - right_elbow
+    - right_wrist
     tracking_window_width: 0.5
     tracking_window_height: 0.5
     timer_period: 0.1
 
     initial_state: [0.5, 0.5, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0]
     covariances: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-    process_noises: [1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2]
-    observation_noises: [5e-3, 5e-3, 1e-3, 1e-3]
+    process_noises: [1e-5, 1e-5, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3]
+    observation_noises: [1e-1, 1e-1, 1e-2, 1e-2]

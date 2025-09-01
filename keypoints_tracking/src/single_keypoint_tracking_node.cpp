@@ -25,50 +25,33 @@ SingleKeypointTrackerNode::~SingleKeypointTrackerNode()
 
 void SingleKeypointTrackerNode::timerCallback()
 {
-  // auto centroid = m_kalman_filter->getCentroidCoordinate();
-  // publishKeypoints(centroid[0], centroid[1]);
-
-  // Publish moving average window
-  if (m_x_moving_average_window.size() >= m_moving_average_window_size) {
-    double x_sum = 0.0;
-    double y_sum = 0.0;
-    for (int i = 0; i < m_moving_average_window_size; i++) {
-      x_sum += m_x_moving_average_window[i];
-      y_sum += m_y_moving_average_window[i];
-    }
-
-    publishKeypoints(x_sum / static_cast<double>(m_moving_average_window_size), 
-      y_sum / static_cast<double>(m_moving_average_window_size));
-  }
+  auto centroid = m_kalman_filter->getCentroidCoordinate();
+  publishKeypoints(centroid[0], centroid[1]);
 }
 
 void SingleKeypointTrackerNode::keypointsCallback(
   const human_swarm_interaction_interfaces::msg::PoseKeypointsStamped::SharedPtr msg)
 {
+  RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000, "Received keypoints message.");
   try {
     for (const auto& keypoint : msg->keypoints) {
-      if (keypoint.name == m_keypoint_name) {
-        if (m_initialized) {
-          m_kalman_filter->predict();
-          m_kalman_filter->update(keypoint.x, keypoint.y);
-        } else {
-          m_kalman_filter->setInitialState(keypoint.x, keypoint.y, 0.0, 0.0);
-          m_initialized = true;
-        }
-
-        // Update moving average window
-        auto centroid = m_kalman_filter->getCentroidCoordinate();
-        m_x_moving_average_window.push_back(centroid[0]);
-        m_y_moving_average_window.push_back(centroid[1]);
-
-        // Remove the oldest element if the window size is exceeded
-        if (m_x_moving_average_window.size() > m_moving_average_window_size) {
-          m_x_moving_average_window.erase(m_x_moving_average_window.begin());
-          m_y_moving_average_window.erase(m_y_moving_average_window.begin());
-        }
-
-        break;
+      if (keypoint.name != m_keypoint_name) {
+        continue;
       }
+
+      double width = m_tracking_window_width * keypoint.confidence;
+      double height = m_tracking_window_height * keypoint.confidence;
+
+      if (m_initialized) {
+        m_kalman_filter->predict();
+        m_kalman_filter->update(keypoint.x, keypoint.y, width, height);
+      } else {
+        m_kalman_filter->setInitialState(keypoint.x, keypoint.y, width, height,
+          0.0, 0.0, 0.0, 0.0);
+        m_initialized = true;
+      }
+
+      break;
     }
   } catch (const std::exception& e) {
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, 
@@ -136,7 +119,8 @@ void SingleKeypointTrackerNode::initializeLinearKalmanFilter()
   RCLCPP_INFO(get_logger(), "Timer initialized with period: %f", timer_period);
 
   // Initialize the Kalman filter
-  m_kalman_filter = std::make_unique<LinearKalmanFilter>(initial_state, covariances, process_noises, observation_noises, timer_period);
+  m_kalman_filter = std::make_unique<LinearKalmanFilter>(
+    initial_state, covariances, process_noises, observation_noises, timer_period);
 }
 
 void SingleKeypointTrackerNode::initializeKeyPointsSubscriber()
@@ -182,11 +166,6 @@ void SingleKeypointTrackerNode::configureParameters()
   m_tracking_window_height = this->get_parameter("tracking_window_height").as_double();
   RCLCPP_INFO(get_logger(), "Tracking window width: %f, height: %f", 
     m_tracking_window_width, m_tracking_window_height);
-
-  // Parameterize the moving average window size
-  this->declare_parameter("moving_average_window_size", 5);
-  m_moving_average_window_size = this->get_parameter("moving_average_window_size").as_int();
-  RCLCPP_INFO(get_logger(), "Moving average window size: %d", m_moving_average_window_size);
 }
 
 int main(int argc, char * argv[])
